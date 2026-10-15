@@ -1,0 +1,19 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+env/
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+# Local database
+backend/db.sqlite3
+# Frontend dependencies and build output
+frontend/node_modules/
+frontend/dist/
+# Test and coverage files
+.coverage
+htmlcov/
+.pytest_cache/
