@@ -35,7 +35,7 @@ export default function Projects() {
   return (
     <div>
       <div className="page-header">
-        <h1>Projects</h1>
+        <div><h1>Projects</h1><p className="muted">Manage and monitor the projects you’re working on.</p></div>
         {canCreateProject(user?.role) && (
           <button onClick={() => setShowForm((s) => !s)}>{showForm ? 'Cancel' : 'New project'}</button>
         )}

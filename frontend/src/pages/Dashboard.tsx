@@ -25,8 +25,11 @@ export default function Dashboard() {
   const { my_tasks, pending_tasks, overdue_tasks, projects, team_stats } = data
 
   return (
-    <div>
-      <h1>My Dashboard</h1>
+    <div className="dashboard-page">
+      <div className="page-heading">
+        <div><span className="page-eyebrow">YOUR WORKSPACE</span><h1>My Dashboard</h1><p className="muted">A clear view of your tasks, projects, and team progress.</p></div>
+        <Link to="/tasks" className="dashboard-quick-link">View my tasks <span aria-hidden="true">→</span></Link>
+      </div>
 
       <div className="stat-grid">
         <Stat label="Total Tasks" value={my_tasks.total} />
@@ -37,8 +40,8 @@ export default function Dashboard() {
       </div>
 
       {projects.length > 0 && (
-        <>
-          <h2>Project progress</h2>
+        <section className="dashboard-panel">
+          <div className="section-heading"><div><h2>Project progress</h2><p className="muted">A snapshot of the projects you’re part of.</p></div><Link to="/projects">All projects →</Link></div>
           <div className="card-grid">
             {projects.map((p) => (
               <Link key={p.id} to={`/projects/${p.id}`} className="project-card">
@@ -54,22 +57,24 @@ export default function Dashboard() {
               </Link>
             ))}
           </div>
-        </>
+        </section>
       )}
 
-      <h2>Pending tasks</h2>
-      <TaskList tasks={pending_tasks} emptyText="Nothing pending - you're all caught up." />
+      <section className="dashboard-panel">
+        <div className="section-heading"><div><h2>Pending tasks</h2><p className="muted">Keep your next priorities in reach.</p></div><Link to="/tasks">All tasks →</Link></div>
+        <TaskList tasks={pending_tasks} emptyText="Nothing pending - you're all caught up." />
+      </section>
 
       {overdue_tasks.length > 0 && (
-        <>
-          <h2>Overdue</h2>
+        <section className="dashboard-panel">
+          <div className="section-heading"><div><h2>Overdue</h2><p className="muted">Tasks that may need your attention.</p></div></div>
           <TaskList tasks={overdue_tasks} />
-        </>
+        </section>
       )}
 
       {team_stats && (
-        <>
-          <h2>Team statistics</h2>
+        <section className="dashboard-panel">
+          <div className="section-heading"><div><h2>Team statistics</h2><p className="muted">Workload and progress across your team.</p></div></div>
           <div className="stat-grid">
             <Stat label="Team tasks" value={team_stats.total} />
             <Stat label="Team overdue" value={team_stats.overdue} tone="warning" />
@@ -99,7 +104,7 @@ export default function Dashboard() {
               </tbody>
             </table>
           </div>
-        </>
+        </section>
       )}
     </div>
   )
@@ -113,5 +118,4 @@ function Stat({ label, value, tone }: { label: string; value: number; tone?: 'wa
     </div>
   )
 }
-
 

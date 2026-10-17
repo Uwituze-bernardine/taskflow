@@ -10,6 +10,7 @@ import AdminStatuses from './pages/AdminStatuses'
 import AdminTags from './pages/AdminTags'
 import AuditLog from './pages/AuditLog'
 import AdminUsers from './pages/AdminUsers'
+import Home from './pages/Home'
 import Login from './pages/Login'
 import Notifications from './pages/Notifications'
 import Profile from './pages/Profile'
@@ -23,6 +24,7 @@ import Tasks from './pages/Tasks'
 export default function App() {
   return (
     <Routes>
+      <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
@@ -47,7 +49,6 @@ export default function App() {
             <Route path="/admin/settings" element={<AdminSettings />} />
             <Route path="/admin/audit" element={<AuditLog />} />
           </Route>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Route>
 

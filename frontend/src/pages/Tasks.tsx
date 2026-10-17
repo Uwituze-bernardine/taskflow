@@ -81,7 +81,7 @@ export default function Tasks() {
   return (
     <div>
       <div className="page-header">
-        <h1>Tasks</h1>
+        <div><h1>Tasks</h1><p className="muted">Plan the work, focus on what’s next, and keep things moving.</p></div>
         {canCreateTask(user?.role) && (
           <button onClick={() => setShowForm((s) => !s)}>{showForm ? 'Cancel' : 'New task'}</button>
         )}

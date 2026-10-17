@@ -154,4 +154,13 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = os.environ.get(
     'CORS_ALLOWED_ORIGINS', 'http://localhost:5173'
 ).split(',')
+if DEBUG:
+    CORS_ALLOWED_ORIGIN_REGEXES = [
+        pattern.strip()
+        for pattern in os.environ.get(
+            'CORS_ALLOWED_ORIGIN_REGEXES',
+            r'^https?://(localhost|127\.0\.0\.1)(:\d+)?$',
+        ).split(',')
+        if pattern.strip()
+    ]
 CORS_ALLOW_CREDENTIALS = True
