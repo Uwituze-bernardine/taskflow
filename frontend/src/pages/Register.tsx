@@ -1,5 +1,6 @@
 import { FormEvent, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import AuthSlideshow from '../components/AuthSlideshow'
 import { useAuth } from '../context/AuthContext'
 import { getErrorMessage } from '../lib/errors'
 
@@ -39,6 +40,7 @@ export default function Register() {
   return (
     <div className="auth-bg auth-register">
       <section className="auth-story">
+        <AuthSlideshow />
         <Link to="/" className="auth-brand"><span className="auth-brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><rect x="2.5" y="2.5" width="27" height="27" rx="6" /><path d="m8 16 5.2 5.2L24 10.5" /></svg></span>TaskFlow</Link>
         <p className="auth-tagline">Plan&nbsp; · &nbsp;Assign&nbsp; · &nbsp;Track&nbsp; · &nbsp;Achieve</p>
         <div className="auth-story-copy">

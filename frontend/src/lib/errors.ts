@@ -5,6 +5,7 @@ import axios from 'axios'
  * DRF returns shapes like { field: ["msg"] }, { detail: "msg" } or { non_field_errors: ["msg"] }.
  */
 export function getErrorMessage(err: unknown, fallback = 'Something went wrong. Please try again.'): string {
+  if (err instanceof Error && !axios.isAxiosError(err)) return err.message || fallback
   if (!axios.isAxiosError(err) || !err.response) {
     return axios.isAxiosError(err) ? 'Cannot reach the server. Is the backend running?' : fallback
   }

@@ -1,6 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? '/api' : '')
 
 export const client = axios.create({ baseURL: BASE_URL })
 
@@ -22,6 +22,9 @@ export const tokenStore = {
 }
 
 client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  if (!BASE_URL) {
+    throw new Error('API is not configured. Set VITE_API_BASE_URL to your backend API URL.')
+  }
   const token = tokenStore.getAccess()
   if (token) {
     config.headers = config.headers ?? {}

@@ -77,6 +77,7 @@ describe('Register page', () => {
   it('rejects mismatched passwords client-side', async () => {
     mockApi()
     renderRegister()
+    expect(document.querySelectorAll('.auth-story .auth-slide')).toHaveLength(2)
     await userEvent.type(screen.getByLabelText(/first name/i), 'A')
     await userEvent.type(screen.getByLabelText(/last name/i), 'B')
     await userEvent.type(screen.getByLabelText(/^username/i), 'ab')
