@@ -63,6 +63,23 @@ class TaskTag(models.Model):
         return self.name
 
 
+class SavedTaskFilter(models.Model):
+    """A named, personal set of task-list filters."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='saved_task_filters')
+    name = models.CharField(max_length=80)
+    filters = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name', 'id']
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'name'], name='unique_saved_task_filter_name_per_user'),
+        ]
+
+    def __str__(self):
+        return f'{self.name} ({self.user})'
+
+
 class CustomTaskStatus(models.Model):
     """
     FR-035: an administrator-defined status such as "QA Testing".

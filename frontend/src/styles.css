@@ -317,6 +317,12 @@ textarea {
   background-size: cover; background-position: center;
   color: #fff;
 }
+.auth-slideshow { position: absolute; z-index: -2; inset: 0; overflow: hidden; }
+.auth-slide {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center;
+  opacity: 0; transform: scale(1.06) translateX(2%); transition: opacity 1.2s ease, transform 6s ease;
+}
+.auth-slide.active { opacity: 1; transform: scale(1) translateX(0); }
 .auth-story::before {
   content: ''; position: absolute; z-index: -1; inset: 0;
   background: linear-gradient(180deg, rgba(21, 24, 34, 0.58), rgba(21, 24, 34, 0.34) 45%, rgba(21, 24, 34, 0.86));
@@ -663,4 +669,8 @@ textarea {
   .public-bottom-cta { align-items: flex-start; flex-direction: column; padding: 22px; }
   .public-footer { flex-wrap: wrap; padding: 18px 16px; }
   .public-footer > span:nth-child(2) { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-slide { transform: none; transition: opacity .2s linear; }
 }

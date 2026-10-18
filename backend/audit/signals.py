@@ -1,4 +1,4 @@
-from django.db.models.signals import m2m_changed, post_save, pre_save
+from django.db.models.signals import m2m_changed, post_save, pre_delete, pre_save
 from django.dispatch import receiver
 
 from tasks.models import Task
@@ -27,7 +27,9 @@ def remember_previous_state(sender, instance, **kwargs):
     instance._audit_old = None
     if instance.pk:
         old = (
-            Task.objects.select_related('assigned_to', 'project', 'parent_task', 'custom_status')
+            Task.objects.select_related(
+                'assigned_to', 'project', 'parent_task', 'custom_status', 'custom_priority'
+            )
             .filter(pk=instance.pk).first()
         )
         if old is not None:
@@ -52,6 +54,15 @@ def log_task_changes(sender, instance, created, **kwargs):
             actor=_actor(instance, False), action='task.updated', model_name='Task',
             object_id=str(instance.pk), changes=changes,
         )
+
+
+@receiver(pre_delete, sender=Task)
+def log_task_deletion(sender, instance, **kwargs):
+    """Keep a durable audit record when a task is permanently deleted."""
+    AuditLog.objects.create(
+        actor=_actor(instance, False), action='task.deleted', model_name='Task',
+        object_id=str(instance.pk), changes={'title': instance.title},
+    )
 
 
 def _predecessor_titles(task):

@@ -17,13 +17,13 @@ from users.models import User
 from users.permissions import ReadOnlyOrIsAdmin
 from .access import team_queryset, visible_tasks
 from .dependencies import check_predecessors, dependency_candidates
-from .filters import TaskOrderingFilter, TaskSearchFilter
-from .models import CustomPriority, CustomTaskStatus, Task, TaskStatusHistory, TaskTag
+from .filters import TaskOrderingFilter, TaskQueryFilter, TaskSearchFilter
+from .models import CustomPriority, CustomTaskStatus, SavedTaskFilter, Task, TaskStatusHistory, TaskTag
 from .permissions import TaskPermission
 from .workflow import apply_status, validate_transition, workflow_options
 from .serializers import (
     CustomPrioritySerializer, CustomTaskStatusSerializer, TaskSerializer, TaskStatusChangeSerializer,
-    TaskStatusHistorySerializer, TaskTagSerializer,
+    TaskStatusHistorySerializer, TaskTagSerializer, SavedTaskFilterSerializer,
 )
 
 
@@ -34,7 +34,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     """
     serializer_class = TaskSerializer
     permission_classes = [TaskPermission]
-    filter_backends = [DjangoFilterBackend, TaskSearchFilter, TaskOrderingFilter]
+    filter_backends = [DjangoFilterBackend, TaskQueryFilter, TaskSearchFilter, TaskOrderingFilter]
     filterset_fields = ['project', 'status', 'custom_status', 'priority', 'assigned_to', 'created_by', 'due_date', 'parent_task']
     search_fields = ['title', 'description']
     ordering_fields = ['priority', 'due_date', 'status', 'created_at']
@@ -92,6 +92,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         """DELETE archives (FR-023). Administrators can add ?permanent=true to erase it."""
         if self.request.query_params.get('permanent') == 'true':
+            instance._actor = self.request.user
             instance.delete()
             return
         instance._actor = self.request.user
@@ -302,3 +303,16 @@ class TaskTagViewSet(viewsets.ModelViewSet):
     permission_classes = [ReadOnlyOrIsAdmin]
     pagination_class = None
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+
+
+class SavedTaskFilterViewSet(viewsets.ModelViewSet):
+    """FR-025: users can save and manage their own named task-list filters."""
+    serializer_class = SavedTaskFilterSerializer
+    pagination_class = None
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+
+    def get_queryset(self):
+        return SavedTaskFilter.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)

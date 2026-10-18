@@ -1,16 +1,28 @@
-import { FormEvent, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { getErrorMessage } from '../lib/errors'
+import loginSlideOne from '../assets/login-slide-1.jpg'
+import loginSlideTwo from '../assets/login-slide-2.jpg'
+
+const loginSlides = [loginSlideOne, loginSlideTwo]
 
 export default function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
+  const [activeSlide, setActiveSlide] = useState(0)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setActiveSlide((current) => (current + 1) % loginSlides.length)
+    }, 6000)
+    return () => window.clearInterval(interval)
+  }, [])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -29,6 +41,16 @@ export default function Login() {
   return (
     <div className="auth-bg">
       <section className="auth-story">
+        <div className="auth-slideshow" aria-hidden="true">
+          {loginSlides.map((image, index) => (
+            <img
+              key={image}
+              className={`auth-slide ${index === activeSlide ? 'active' : ''}`}
+              src={image}
+              alt=""
+            />
+          ))}
+        </div>
         <div className="auth-brand">
           <span className="auth-brand-mark" aria-hidden="true">
             <svg viewBox="0 0 32 32" fill="none">

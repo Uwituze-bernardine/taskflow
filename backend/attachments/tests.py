@@ -58,6 +58,17 @@ class AttachmentTests(ApiTestCase):
         self.assertEqual(res.status_code, 400)
         self.assertIn('not allowed', str(res.data))
 
+    def test_renaming_unrelated_content_to_allowed_extension_is_rejected(self):
+        task = self.make_task()
+        for name, payload in (
+            ('payload.pdf', b'MZ\x90\x00fake executable'),
+            ('photo.png', b'<html>not an image</html>'),
+            ('archive.zip', b'plain text, not an archive'),
+        ):
+            response = self.upload(task, self.pm, name=name, content=payload)
+            self.assertEqual(response.status_code, 400, (name, response.data))
+            self.assertIn('contents do not match', str(response.data))
+
     def test_oversized_file_rejected(self):
         task = self.make_task()
         AttachmentSettings.objects.update_or_create(pk=1, defaults={'max_size_mb': 1})
@@ -78,7 +89,9 @@ class AttachmentTests(ApiTestCase):
 
         task = self.make_task()
         self.assertEqual(self.upload(task, self.pm, name='sheet.xlsx').status_code, 400)  # no longer allowed
-        self.assertEqual(self.upload(task, self.pm, name='ok.pdf', content_type='application/pdf').status_code, 201)
+        self.assertEqual(self.upload(
+            task, self.pm, name='ok.pdf', content=b'%PDF-1.4', content_type='application/pdf'
+        ).status_code, 201)
 
     # ---- FR-050: download is authorized ------------------------------------------------
 

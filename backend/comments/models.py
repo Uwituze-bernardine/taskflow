@@ -32,3 +32,17 @@ class Comment(models.Model):
 
     def __str__(self):
         return f'Comment by {self.author} on {self.task}'
+
+
+class CommentRevision(models.Model):
+    """An immutable copy of the previous body whenever a comment is edited."""
+    comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name='revisions')
+    body = models.TextField()
+    edited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='comment_revisions',
+    )
+    saved_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['saved_at']

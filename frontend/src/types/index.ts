@@ -192,6 +192,13 @@ export interface Comment {
   can_delete: boolean
   created_at: string
   edited_at: string | null
+  revisions?: CommentRevision[]
+}
+
+export interface CommentRevision {
+  body: string
+  edited_by: number | null
+  saved_at: string
 }
 
 export interface Attachment {

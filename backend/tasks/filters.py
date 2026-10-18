@@ -1,5 +1,33 @@
 from django.db.models import Case, F, IntegerField, Q, When
+from django.utils.dateparse import parse_date
+from rest_framework.exceptions import ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
+
+
+class TaskQueryFilter:
+    """Apply simple list filters that need explicit range/tag semantics."""
+
+    FILTERS = {
+        'created_after': 'created_at__date__gte',
+        'created_before': 'created_at__date__lte',
+        'due_after': 'due_date__gte',
+        'due_before': 'due_date__lte',
+    }
+
+    def filter_queryset(self, request, queryset, view):
+        for name, field in self.FILTERS.items():
+            value = request.query_params.get(name)
+            if value:
+                date = parse_date(value)
+                if date is None:
+                    raise ValidationError({name: 'Enter a valid date in YYYY-MM-DD format.'})
+                queryset = queryset.filter(**{field: date})
+        tags = request.query_params.getlist('tag')
+        if len(tags) == 1:
+            tags = [part.strip() for part in tags[0].split(',') if part.strip()]
+        for tag in tags:
+            queryset = queryset.filter(tags__icontains=f'"{tag}"')
+        return queryset
 
 
 class TaskSearchFilter(SearchFilter):

@@ -1,9 +1,13 @@
+from datetime import timedelta
+
+from django.utils import timezone
 from django.urls import reverse
 
+from audit.models import AuditLog
 from notifications.models import Notification
 from projects.models import Project
 from taskflow.test_utils import ApiTestCase
-from tasks.models import Task, TaskStatusHistory
+from tasks.models import CustomPriority, Task, TaskStatusHistory
 
 
 class TaskTests(ApiTestCase):
@@ -279,6 +283,32 @@ class TaskTests(ApiTestCase):
         self.as_user(self.outsider)
         self.assertEqual(self.client.get(self.url('history', task)).status_code, 404)
 
+    def test_history_tracks_recurrence_and_custom_priority_edits(self):
+        custom = CustomPriority.objects.create(name='Showstopper', category='CRITICAL')
+        task = self.make(due_date='2026-11-01')
+        self.as_user(self.pm)
+        response = self.client.patch(self.url('detail', task), {
+            'custom_priority': custom.id, 'recurrence': 'WEEKLY',
+            'recurrence_interval': 2, 'recurrence_end_date': '2026-12-01',
+        })
+        self.assertEqual(response.status_code, 200, response.data)
+        self.as_user(self.member)
+        changes = self.client.get(self.url('history', task)).data[0]['changes']
+        by_field = {change['field']: change for change in changes}
+        self.assertEqual(by_field['custom_priority']['to'], 'Showstopper')
+        self.assertEqual(by_field['recurrence']['to'], 'Weekly')
+        self.assertEqual(by_field['recurrence_interval']['to'], '2')
+        self.assertEqual(by_field['recurrence_end_date']['to'], '2026-12-01')
+
+    def test_permanent_task_deletion_is_audited_with_actor(self):
+        task = self.make(title='Permanently removed')
+        self.as_user(self.admin)
+        response = self.client.delete(self.url('detail', task), {'permanent': 'true'})
+        self.assertEqual(response.status_code, 204)
+        entry = AuditLog.objects.get(model_name='Task', object_id=str(task.id), action='task.deleted')
+        self.assertEqual(entry.actor, self.admin)
+        self.assertEqual(entry.changes['title'], 'Permanently removed')
+
     # ---- FR-029 / FR-030 ------------------------------------------------------------
 
     def test_my_tasks(self):
@@ -317,6 +347,40 @@ class TaskTests(ApiTestCase):
         self.as_user(self.pm)
         self.assertEqual(self.ids(self.client.get(reverse('task-list'), {'search': str(task.id)})), {task.id})
         self.assertEqual(self.ids(self.client.get(reverse('task-list'), {'search': 'alph'})), {task.id})
+
+    def test_tag_created_date_and_due_date_range_filters(self):
+        target = self.make(title='Matching', tags=['urgent', 'backend'], due_date='2026-11-15')
+        self.make(title='Other tag', tags=['backend'], due_date='2026-11-15')
+        self.make(title='Outside due range', tags=['urgent'], due_date='2026-12-15')
+        Task.objects.filter(pk=target.pk).update(created_at=timezone.now())
+        Task.objects.filter(title__in=['Other tag', 'Outside due range']).update(
+            created_at=timezone.now() - timedelta(days=5)
+        )
+        self.as_user(self.pm)
+        response = self.client.get(reverse('task-list'), {
+            'tag': 'urgent', 'created_after': timezone.localdate().isoformat(),
+            'due_after': '2026-11-01', 'due_before': '2026-12-01',
+        })
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(self.ids(response), {target.id})
+        invalid = self.client.get(reverse('task-list'), {'created_after': 'not-a-date'})
+        self.assertEqual(invalid.status_code, 400)
+
+    def test_saved_filters_are_private_and_only_accept_supported_fields(self):
+        self.as_user(self.pm)
+        url = reverse('saved-task-filter-list')
+        response = self.client.post(url, {
+            'name': 'Urgent due soon',
+            'filters': {'tag': 'urgent', 'due_after': '2026-11-01'},
+        }, format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+        filter_id = response.data['id']
+        self.assertEqual(self.client.get(url).data[0]['name'], 'Urgent due soon')
+        bad = self.client.post(url, {'name': 'Bad', 'filters': {'search': 'secret'}}, format='json')
+        self.assertEqual(bad.status_code, 400)
+        self.as_user(self.member)
+        self.assertEqual(self.client.get(url).data, [])
+        self.assertEqual(self.client.delete(reverse('saved-task-filter-detail', args=[filter_id])).status_code, 404)
 
     def test_sorting_by_priority_and_due_date_is_meaningful(self):
         low = self.make(title='low', priority='LOW', due_date='2026-01-02')

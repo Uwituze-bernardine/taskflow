@@ -2,17 +2,21 @@
 from .models import AuditLog
 
 TRACKED_FIELDS = [
-    'title', 'description', 'priority', 'status', 'assigned_to', 'project', 'parent_task',
+    'title', 'description', 'priority', 'custom_priority', 'status', 'assigned_to', 'project', 'parent_task',
     'start_date', 'due_date', 'tags', 'enforce_dependencies', 'is_archived',
+    'recurrence', 'recurrence_interval', 'recurrence_end_date',
 ]
 FIELD_LABELS = {
     'title': 'Title', 'description': 'Description', 'priority': 'Priority', 'status': 'Status',
+    'custom_priority': 'Custom priority',
     'assigned_to': 'Assignee', 'project': 'Project', 'parent_task': 'Parent task',
     'start_date': 'Start date', 'due_date': 'Due date', 'tags': 'Tags',
     'enforce_dependencies': 'Enforce dependencies', 'is_archived': 'Archived',
     'depends_on': 'Depends on',
+    'recurrence': 'Recurrence', 'recurrence_interval': 'Recurrence interval',
+    'recurrence_end_date': 'Recurrence end date',
 }
-_FK_FIELDS = ('assigned_to', 'project', 'parent_task')
+_FK_FIELDS = ('assigned_to', 'project', 'parent_task', 'custom_priority')
 
 
 def _raw(task, field):
@@ -34,10 +38,14 @@ def _display(task, field):
         return value.name
     if field == 'parent_task':
         return value.title
+    if field == 'custom_priority':
+        return value.name
     if field == 'priority':
         return dict(task._meta.get_field(field).flatchoices).get(value, value)
-    if field in ('start_date', 'due_date'):
+    if field in ('start_date', 'due_date', 'recurrence_end_date'):
         return value.isoformat()
+    if field == 'recurrence':
+        return dict(task._meta.get_field(field).flatchoices).get(value, value)
     if field in ('enforce_dependencies', 'is_archived'):
         return 'Yes' if value else 'No'
     if field == 'tags':

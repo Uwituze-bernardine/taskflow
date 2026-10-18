@@ -1,8 +1,50 @@
+import zipfile
+
 from rest_framework import serializers
 
 from tasks.access import in_closed_project, visible_tasks
 from users.serializers import UserDirectorySerializer
 from .models import Attachment, AttachmentSettings
+
+
+def content_matches_extension(file, extension):
+    """Check payload signatures instead of trusting the client-supplied filename/MIME type."""
+    file.seek(0)
+    header = file.read(8192)
+    file.seek(0)
+    if extension == 'pdf':
+        return header.startswith(b'%PDF-')
+    if extension == 'png':
+        return header.startswith(b'\x89PNG\r\n\x1a\n')
+    if extension in ('jpg', 'jpeg'):
+        return header.startswith(b'\xff\xd8\xff')
+    if extension == 'gif':
+        return header.startswith((b'GIF87a', b'GIF89a'))
+    if extension in ('txt', 'csv'):
+        try:
+            text = header.decode('utf-8-sig')
+        except UnicodeDecodeError:
+            return False
+        return '\x00' not in text and bool(text.strip())
+    if extension in ('zip', 'docx', 'xlsx', 'pptx'):
+        try:
+            with zipfile.ZipFile(file) as archive:
+                names = set(archive.namelist())
+        except (OSError, zipfile.BadZipFile):
+            return False
+        finally:
+            file.seek(0)
+        if extension == 'zip':
+            return bool(names)
+        office_parts = {
+            'docx': 'word/document.xml',
+            'xlsx': 'xl/workbook.xml',
+            'pptx': 'ppt/presentation.xml',
+        }
+        return '[Content_Types].xml' in names and office_parts[extension] in names
+    if extension in ('doc', 'xls', 'ppt'):
+        return header.startswith(b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1')
+    return False
 
 
 class AttachmentSettingsSerializer(serializers.ModelSerializer):
@@ -72,5 +114,9 @@ class AttachmentSerializer(serializers.ModelSerializer):
             if file.size > max_bytes:
                 raise serializers.ValidationError(
                     {'file': f'File exceeds the {settings_obj.max_size_mb}MB limit.'}
+                )
+            if not content_matches_extension(file, ext):
+                raise serializers.ValidationError(
+                    {'file': f'The file contents do not match the ".{ext}" file type.'}
                 )
         return attrs

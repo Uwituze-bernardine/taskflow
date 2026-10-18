@@ -10,10 +10,35 @@ from .access import (
     can_add_subtask, can_change_status, can_manage_task, in_closed_project, visible_tasks,
 )
 from .dependencies import check_predecessors
-from .models import CustomPriority, CustomTaskStatus, Recurrence, Task, TaskStatus, TaskStatusHistory, TaskTag
+from .models import (
+    CustomPriority, CustomTaskStatus, Recurrence, SavedTaskFilter, Task, TaskStatus,
+    TaskStatusHistory, TaskTag,
+)
 from .recurrence import next_occurrence_due_date
 
 FINISHED = (TaskStatus.COMPLETED, TaskStatus.CANCELLED)
+
+
+class SavedTaskFilterSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SavedTaskFilter
+        fields = ['id', 'name', 'filters', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+    def validate_name(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError('A saved filter needs a name.')
+        return value
+
+    def validate_filters(self, value):
+        allowed = {
+            'status', 'priority', 'project', 'assigned_to', 'tag',
+            'created_after', 'created_before', 'due_after', 'due_before',
+        }
+        if not isinstance(value, dict) or not set(value).issubset(allowed):
+            raise serializers.ValidationError('The filter contains unsupported fields.')
+        return value
 
 
 def _mini(task):

@@ -3,9 +3,16 @@ from rest_framework import serializers
 from tasks.access import in_closed_project, visible_tasks
 from users.serializers import UserDirectorySerializer
 from .mentions import extract_mentions
-from .models import Comment
+from .models import Comment, CommentRevision
 
 DELETED_BODY = 'This comment was deleted.'
+
+
+class CommentRevisionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CommentRevision
+        fields = ['body', 'edited_by', 'saved_at']
+        read_only_fields = fields
 
 
 class CommentSerializer(serializers.ModelSerializer):
@@ -14,13 +21,14 @@ class CommentSerializer(serializers.ModelSerializer):
     is_edited = serializers.SerializerMethodField()
     can_edit = serializers.SerializerMethodField()
     can_delete = serializers.SerializerMethodField()
+    revisions = CommentRevisionSerializer(many=True, read_only=True)
 
     class Meta:
         model = Comment
         fields = [
             'id', 'task', 'author', 'author_detail', 'body',
             'mentioned_users_detail', 'is_edited', 'is_deleted',
-            'can_edit', 'can_delete', 'created_at', 'edited_at',
+            'can_edit', 'can_delete', 'created_at', 'edited_at', 'revisions',
         ]
         # `mentioned_users` is derived server-side from the body (FR-045), never set by the client.
         read_only_fields = ['id', 'author', 'is_deleted', 'created_at', 'edited_at']
@@ -55,6 +63,7 @@ class CommentSerializer(serializers.ModelSerializer):
         if instance.is_deleted:  # FR-047: the fact of the comment stays; its content doesn't.
             data['body'] = DELETED_BODY
             data['mentioned_users_detail'] = []
+            data['revisions'] = []
         return data
 
     def validate_body(self, value):

@@ -75,6 +75,19 @@ export default function CommentThread({ taskId, comments, participants, onChange
             ) : (
               <p className={c.is_deleted ? 'muted' : ''}>{c.body}</p>
             )}
+            {!c.is_deleted && c.revisions && c.revisions.length > 0 && (
+              <details className="comment-revisions">
+                <summary>Previous versions ({c.revisions.length})</summary>
+                <ol>
+                  {c.revisions.map((revision, index) => (
+                    <li key={`${revision.saved_at}-${index}`}>
+                      <span className="muted">{formatDateTime(revision.saved_at)}</span>
+                      <p>{revision.body}</p>
+                    </li>
+                  ))}
+                </ol>
+              </details>
+            )}
             {(c.can_edit || c.can_delete) && editingId !== c.id && (
               <div className="comment-actions">
                 {c.can_edit && <button className="link-btn" onClick={() => startEdit(c)}>Edit</button>}

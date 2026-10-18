@@ -96,6 +96,21 @@ class CommentTests(ApiTestCase):
         cid = res.data['id']
         res = self.client.patch(reverse('comment-detail', args=[cid]), {'body': 'v2'})
         self.assertEqual((res.status_code, res.data['body'], res.data['is_edited']), (200, 'v2', True))
+        self.assertEqual([revision['body'] for revision in res.data['revisions']], ['v1'])
+        self.assertEqual(res.data['revisions'][0]['edited_by'], self.pm.id)
+
+    def test_comment_edit_history_preserves_each_previous_version(self):
+        task = self.make_task()
+        comment_id = self.post(task, 'first', self.pm).data['id']
+        self.client.patch(reverse('comment-detail', args=[comment_id]), {'body': 'second'})
+        response = self.client.patch(reverse('comment-detail', args=[comment_id]), {'body': 'third'})
+        self.assertEqual(
+            [revision['body'] for revision in response.data['revisions']],
+            ['first', 'second'],
+        )
+        self.client.delete(reverse('comment-detail', args=[comment_id]))
+        deleted = self.client.get(reverse('comment-detail', args=[comment_id]))
+        self.assertEqual(deleted.data['revisions'], [])
 
     def test_only_author_can_edit(self):
         task = self.make_task()

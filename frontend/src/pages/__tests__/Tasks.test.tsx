@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it } from 'vitest'
 import Tasks from '../Tasks'
@@ -10,6 +10,7 @@ afterEach(() => { clearSession() })
 function stubLookups(mock: ReturnType<typeof mockApi>) {
   mock.onGet('/projects/').reply(200, paginated([project1]))
   mock.onGet('/users/').reply(200, paginated([userSummary(mePM), userSummary(meMember)]))
+  mock.onGet('/tasks/saved-filters/').reply(200, [])
 }
 
 describe('Tasks page', () => {
@@ -52,6 +53,29 @@ describe('Tasks page', () => {
         return [200, paginated([makeTask({ id: 999, title: 'Done task', status: 'COMPLETED' })])]
       }
       return [200, paginated([makeTask()])]
+    })
+
+    it('saves and reapplies a named filter', async () => {
+      const mock = mockApi()
+      stubLookups(mock)
+      mock.onGet('/tasks/').reply(200, paginated([makeTask()]))
+      mock.onPost('/tasks/saved-filters/').reply(201, {
+        id: 4,
+        name: 'Urgent dates',
+        filters: { tag: 'urgent', due_after: '2026-11-01' },
+        created_at: '2026-10-18T09:00:00Z',
+      })
+      renderAsUser(<Tasks />, mePM, mock)
+      await screen.findByText('Design database')
+
+      await userEvent.type(screen.getByRole('textbox', { name: /name this filter/i }), 'Urgent dates')
+      await userEvent.click(screen.getByRole('button', { name: /save filter/i }))
+      const select = screen.getByRole('combobox', { name: /saved filters/i })
+      await screen.findByRole('option', { name: 'Urgent dates' })
+      await userEvent.selectOptions(select, '4')
+      await waitFor(() => {
+        expect(mock.history.get.some((request) => request.url === '/tasks/' && request.params?.tag === 'urgent' && request.params?.due_after === '2026-11-01')).toBe(true)
+      })
     })
     renderAsUser(<Tasks />, mePM, mock)
     await screen.findByText('Design database')

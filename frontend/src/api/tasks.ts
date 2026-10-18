@@ -12,7 +12,19 @@ export interface TaskFilters {
   search?: string
   ordering?: string
   archived?: boolean
+  tag?: string
+  created_after?: string
+  created_before?: string
+  due_after?: string
+  due_before?: string
   page?: number
+}
+
+export interface SavedTaskFilter {
+  id: number
+  name: string
+  filters: Pick<TaskFilters, 'status' | 'priority' | 'project' | 'assigned_to' | 'tag' | 'created_after' | 'created_before' | 'due_after' | 'due_before'>
+  created_at: string
 }
 
 export interface TaskInput {
@@ -62,6 +74,20 @@ export async function myTasks(filters: TaskFilters = {}): Promise<Paginated<Task
 export async function teamTasks(filters: TaskFilters = {}): Promise<Paginated<Task>> {
   const { data } = await client.get('/tasks/team/', { params: filters })
   return data
+}
+
+export async function listSavedTaskFilters(): Promise<SavedTaskFilter[]> {
+  const { data } = await client.get('/tasks/saved-filters/')
+  return data
+}
+
+export async function createSavedTaskFilter(name: string, filters: SavedTaskFilter['filters']): Promise<SavedTaskFilter> {
+  const { data } = await client.post('/tasks/saved-filters/', { name, filters })
+  return data
+}
+
+export async function deleteSavedTaskFilter(id: number): Promise<void> {
+  await client.delete(`/tasks/saved-filters/${id}/`)
 }
 
 export async function getTask(id: number): Promise<Task> {

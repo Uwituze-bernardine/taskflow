@@ -23,7 +23,7 @@ class CommentViewSet(viewsets.ModelViewSet):
         return (
             Comment.objects.filter(task__in=visible_tasks(self.request.user))
             .select_related('author', 'task')
-            .prefetch_related('mentioned_users')
+            .prefetch_related('mentioned_users', 'revisions')
         )
 
     def _notify_mentions(self, comment, exclude_ids=()):
@@ -37,6 +37,14 @@ class CommentViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         before = set(serializer.instance.mentioned_users.values_list('id', flat=True))
+        old_body = serializer.instance.body
+        new_body = serializer.validated_data.get('body', old_body)
+        if new_body != old_body:
+            from .models import CommentRevision
+            CommentRevision.objects.create(
+                comment=serializer.instance, body=old_body, edited_by=self.request.user,
+            )
+            getattr(serializer.instance, '_prefetched_objects_cache', {}).pop('revisions', None)
         comment = serializer.save(edited_at=timezone.now())  # FR-048
         self._notify_mentions(comment, exclude_ids=before)  # only notify newly-added mentions
 
