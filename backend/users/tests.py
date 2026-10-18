@@ -7,9 +7,10 @@ PASSWORD = 'Sup3r-secret-pw'
 
 
 def make_user(username, role=Role.TEAM_MEMBER, **extra):
+    email = extra.pop('email', f'{username}@example.com')
     return User.objects.create_user(
         username=username, password=PASSWORD, role=role,
-        email=f'{username}@example.com', first_name=username.title(), last_name='Test', **extra,
+        email=email, first_name=username.title(), last_name='Test', **extra,
     )
 
 
@@ -68,6 +69,29 @@ class AuthTests(APITestCase):
         alice.refresh_from_db()
         self.assertEqual((alice.first_name, alice.job_title), ('Alicia', 'Dev'))
         self.assertEqual(alice.role, Role.TEAM_MEMBER)
+
+    def test_profile_update_allows_unchanged_email_even_if_duplicate_exists(self):
+        alice = make_user('alice')
+        make_user('duplicate', email=alice.email)
+        self.auth_as(alice)
+
+        res = self.client.patch(reverse('user-me'), {
+            'email': alice.email, 'job_title': 'Developer', 'phone': '555-0100',
+        })
+
+        self.assertEqual(res.status_code, 200, res.data)
+        alice.refresh_from_db()
+        self.assertEqual((alice.job_title, alice.phone), ('Developer', '555-0100'))
+
+    def test_profile_update_rejects_email_already_used_by_another_user(self):
+        alice = make_user('alice')
+        bob = make_user('bob')
+        self.auth_as(alice)
+
+        res = self.client.patch(reverse('user-me'), {'email': bob.email})
+
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('email', res.data)
 
     def test_change_password_requires_current_password(self):
         alice = make_user('alice')

@@ -117,6 +117,8 @@ class ProfileSerializer(serializers.ModelSerializer):
         extra_kwargs = {'email': {'allow_blank': False}}
 
     def validate_email(self, value):
+        if self.instance and value.casefold() == self.instance.email.casefold():
+            return value
         return _unique_email(value, self.instance)
 
 
