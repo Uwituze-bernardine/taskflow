@@ -616,10 +616,22 @@ textarea {
   .app-shell { display: block; }
   .sidebar { position: relative; width: 100%; height: auto; padding: 12px 14px; border-right: 0; border-bottom: 1px solid var(--border); }
   .sidebar .brand { padding: 0 4px 10px; }
-  .sidebar-caption, .sidebar-footer, .sidebar .nav-section { display: none; }
+  .sidebar-caption, .sidebar .nav-section { display: none; }
   .sidebar nav { flex-direction: row; gap: 3px; overflow-x: auto; padding-bottom: 2px; }
   .sidebar nav a { flex: 0 0 auto; gap: 6px; min-height: 35px; padding: 7px 9px; font-size: 11px; }
   .sidebar nav a > span:first-child { width: auto; font-size: 13px; }
+  .sidebar-footer {
+    display: flex; flex-direction: row; align-items: center; gap: 8px; margin-top: 8px;
+    padding-top: 8px; border-top: 1px solid #f0f0f1;
+  }
+  .sidebar-user { flex: 1; min-width: 0; padding: 2px; }
+  .sidebar-user > span:last-child { display: none; }
+  .sidebar-logout {
+    flex: 0 0 auto; min-height: 40px; margin-left: auto; padding: 8px 12px;
+    border: 1px solid var(--accent-soft-border); border-radius: 8px;
+    background: var(--accent-soft); color: var(--accent-soft-ink); font-weight: 650;
+  }
+  .sidebar-logout:hover { background: var(--accent); color: var(--accent-ink); }
   .content { padding: 0 14px 32px; }
   .topbar { min-height: 54px; margin-bottom: 20px; }
   .workspace-breadcrumb { font-size: 10px; }
