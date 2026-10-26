@@ -68,6 +68,7 @@ export default function Login() {
             </div>
             <h1>Welcome back!</h1>
             <p className="muted">Sign in to continue to your workspace.</p>
+            <Link to="/forgot-password">Forgot your password?</Link>
             <label>
               Username
               <input
@@ -88,6 +89,9 @@ export default function Login() {
               />
             </label>
             {error && <p className="error">{error}</p>}
+            {error?.toLowerCase().includes('verify your email') && (
+              <Link to="/resend-verification">Resend verification email</Link>
+            )}
             <button type="submit" disabled={submitting}>
               {submitting ? 'Signing in…' : 'Sign in'} <span aria-hidden="true">→</span>
             </button>

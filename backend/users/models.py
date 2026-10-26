@@ -16,13 +16,20 @@ class User(AbstractUser):
     role = models.CharField(
         max_length=20, choices=Role.choices, default=Role.TEAM_MEMBER
     )
+
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
     job_title = models.CharField(max_length=150, blank=True)
     phone = models.CharField(max_length=30, blank=True)
+    email_verified = models.BooleanField(
+        default=False,
+        help_text='New self-registered accounts must verify their email before signing in.',
+    )
+
     is_active_member = models.BooleanField(
         default=True,
         help_text='Deactivate/reactivate without deleting the account (FR-004).',
     )
+
     notification_preferences = models.JSONField(
         default=dict, blank=True,
         help_text='Per-channel notification settings (FR-059).',

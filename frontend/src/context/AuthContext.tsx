@@ -57,10 +57,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCurrentUser(await apiLogin(username, password))
   }
 
-  // FR-001: create the account, then sign the new user straight in.
+  // FR-001: new accounts must verify their email before they can sign in.
   async function register(payload: RegisterPayload) {
     await apiRegister(payload)
-    await login(payload.username, payload.password)
   }
 
   async function logout() {

@@ -4,7 +4,10 @@ from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from users.views import LoginView, LogoutView, RegisterView
+from users.views import (
+    LoginView, LogoutView, PasswordResetConfirmView, PasswordResetRequestView,
+    RegisterView, ResendVerificationView, VerifyEmailView,
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -14,6 +17,10 @@ urlpatterns = [
     path('api/auth/login/', LoginView.as_view(), name='login'),
     path('api/auth/logout/', LogoutView.as_view(), name='logout'),
     path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/auth/verify-email/', VerifyEmailView.as_view(), name='verify_email'),
+    path('api/auth/resend-verification/', ResendVerificationView.as_view(), name='resend_verification'),
+    path('api/auth/password-reset/', PasswordResetRequestView.as_view(), name='password_reset_request'),
+    path('api/auth/password-reset/confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
 
     # App modules
     path('api/users/', include('users.urls')),

@@ -5,6 +5,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 import dj_database_url
 load_dotenv()
@@ -140,6 +141,11 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 25,
+    'DEFAULT_THROTTLE_RATES': {
+        'registration': '5/hour',
+        'auth_email': '5/hour',
+        'auth_verification': '20/hour',
+    },
 }
 
 SIMPLE_JWT = {
@@ -164,3 +170,59 @@ if DEBUG:
         if pattern.strip()
     ]
 CORS_ALLOW_CREDENTIALS = True
+
+# --- email delivery ------------------------------------------------------
+
+MAIL_USERNAME = os.environ.get('MAIL_USERNAME', '')
+MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD', '')
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND')
+if EMAIL_BACKEND is None:
+    if MAIL_USERNAME and MAIL_PASSWORD:
+        EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    elif DEBUG:
+        EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+    else:
+        raise ImproperlyConfigured(
+            'Set MAIL_USERNAME and MAIL_PASSWORD to enable verification and password reset emails.'
+        )
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() == 'true'
+EMAIL_HOST_USER = MAIL_USERNAME
+EMAIL_HOST_PASSWORD = MAIL_PASSWORD
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', MAIL_USERNAME or 'TaskFlow <noreply@localhost>')
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
+
+
+# Email configuration (Brevo SMTP)
+
+# --- Email configuration (Brevo SMTP) ---
+
+EMAIL_BACKEND = os.environ.get(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.smtp.EmailBackend" if not DEBUG
+    else "django.core.mail.backends.console.EmailBackend",
+)
+
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp-relay.brevo.com")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "True").lower() == "true"
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "")
+FRONTEND_URL = os.environ.get(
+    "FRONTEND_URL",
+    "http://localhost:5173" if DEBUG else "",
+)
+
+if not DEBUG and EMAIL_BACKEND.endswith("smtp.EmailBackend"):
+    if not EMAIL_HOST_USER or not EMAIL_HOST_PASSWORD or not DEFAULT_FROM_EMAIL:
+        raise ImproperlyConfigured(
+            "Production email requires EMAIL_HOST_USER, "
+            "EMAIL_HOST_PASSWORD, and DEFAULT_FROM_EMAIL."
+        )
+
+if not DEBUG and not FRONTEND_URL:
+    raise ImproperlyConfigured(
+        "FRONTEND_URL must be configured in production."
+    )

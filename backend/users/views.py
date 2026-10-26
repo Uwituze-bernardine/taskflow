@@ -1,32 +1,143 @@
+import binascii
+
 from django.contrib.auth import password_validation
+from django.contrib.auth.tokens import default_token_generator
+from django.db import transaction
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode
 from django.utils.crypto import get_random_string
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from .emails import send_password_reset_email, send_verification_email
 from .models import Role, User
 from .permissions import IsAdmin
 from .serializers import (
     AdminUserCreateSerializer, AdminUserUpdateSerializer, ChangePasswordSerializer,
-    LoginSerializer, ProfileSerializer, RegisterSerializer, ResetPasswordSerializer,
-    UserDirectorySerializer, UserSerializer,
+    EmailSerializer, EmailVerificationSerializer, LoginSerializer, PasswordResetConfirmSerializer,
+    ProfileSerializer, RegisterSerializer, ResetPasswordSerializer, UserDirectorySerializer,
+    UserSerializer,
 )
 from .services import revoke_user_tokens
+from .tokens import email_verification_token
 
 
 class RegisterView(APIView):
     """FR-001: anyone can create an account (always as a Team Member)."""
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'registration'
 
+    @transaction.atomic
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+        send_verification_email(user)
+        return Response(
+            {'detail': 'Account created. Check your email for a verification link before signing in.'},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class VerifyEmailView(APIView):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth_verification'
+
+    def post(self, request):
+        serializer = EmailVerificationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = _user_from_uid(serializer.validated_data['uid'])
+        if user is None:
+            raise ValidationError({'detail': 'This verification link is invalid or expired.'})
+        if user.email_verified:
+            return Response({'detail': 'This email address is already verified.'})
+        if not email_verification_token.check_token(user, serializer.validated_data['token']):
+            raise ValidationError({'detail': 'This verification link is invalid or expired.'})
+        user.email_verified = True
+        user.save(update_fields=['email_verified'])
+        return Response({'detail': 'Email verified. You can now sign in.'})
+
+
+class ResendVerificationView(APIView):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth_email'
+
+    def post(self, request):
+        serializer = EmailSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = User.objects.filter(
+            email__iexact=serializer.validated_data['email'],
+            is_active_member=True,
+            email_verified=False,
+        ).first()
+        if user:
+            send_verification_email(user)
+        return Response({
+            'detail': 'If this address belongs to an unverified account, a verification email has been sent.'
+        })
+
+
+class PasswordResetRequestView(APIView):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth_email'
+
+    def post(self, request):
+        serializer = EmailSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = User.objects.filter(
+            email__iexact=serializer.validated_data['email'],
+            is_active_member=True,
+            email_verified=True,
+        ).first()
+        if user:
+            send_password_reset_email(user)
+        return Response({
+            'detail': 'If an active account uses that email, password reset instructions have been sent.'
+        })
+
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth_verification'
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = _user_from_uid(serializer.validated_data['uid'])
+        if (
+            user is None
+            or not user.is_active_member
+            or not user.email_verified
+            or not default_token_generator.check_token(user, serializer.validated_data['token'])
+        ):
+            raise ValidationError({'detail': 'This password reset link is invalid or expired.'})
+        user.set_password(serializer.validated_data['new_password'])
+        user.save(update_fields=['password'])
+        revoke_user_tokens(user)
+        return Response({'detail': 'Password reset. You can now sign in.'})
+
+
+def _user_from_uid(uid):
+    try:
+        user_id = force_str(urlsafe_base64_decode(uid))
+    except (TypeError, ValueError, OverflowError, UnicodeDecodeError, binascii.Error):
+        return None
+    return User.objects.filter(pk=user_id).first()
 
 
 class LoginView(APIView):
@@ -114,12 +225,16 @@ class UserViewSet(viewsets.ModelViewSet):
     # -- current user ------------------------------------------------------
 
     @action(detail=False, methods=['get', 'patch'])
+    @transaction.atomic
     def me(self, request):
         """FR-003: view / update own profile."""
         if request.method == 'PATCH':
+            previous_email = request.user.email
             serializer = ProfileSerializer(request.user, data=request.data, partial=True)
             serializer.is_valid(raise_exception=True)
             serializer.save()
+            if request.user.email.casefold() != previous_email.casefold():
+                send_verification_email(request.user)
         return Response(UserSerializer(request.user).data)
 
     @action(detail=False, methods=['post'], url_path='me/change-password')

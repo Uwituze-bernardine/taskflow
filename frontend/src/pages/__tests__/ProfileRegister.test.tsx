@@ -26,6 +26,23 @@ describe('Profile page', () => {
     expect(await screen.findByText('Profile updated.')).toBeInTheDocument()
   })
 
+  it('informs the user to verify a changed email address', async () => {
+    const mock = mockApi()
+    mock.onGet('/notifications/preferences/').reply(200, allOn)
+    renderAsUser(<Profile />, mePM, mock)
+    await screen.findByDisplayValue('Pam')
+
+    mock.onPatch('/users/me/').reply(200, {
+      ...mePM, email: 'new@example.com', email_verified: false,
+    })
+    const email = screen.getByLabelText(/^email/i)
+    await userEvent.clear(email)
+    await userEvent.type(email, 'new@example.com')
+    await userEvent.click(screen.getByRole('button', { name: /save changes/i }))
+
+    expect(await screen.findByText(/verify your new email address/i)).toBeInTheDocument()
+  })
+
   it('toggles a notification preference and sends only that key', async () => {
     const mock = mockApi()
     mock.onGet('/notifications/preferences/').reply(200, allOn)
@@ -100,5 +117,27 @@ describe('Register page', () => {
     await userEvent.type(screen.getByLabelText(/confirm password/i), 'Sup3r-secret-pw')
     await userEvent.click(screen.getByRole('button', { name: /create account/i }))
     expect(await screen.findByText(/already exists/i)).toBeInTheDocument()
+  })
+
+  it('asks the new user to verify email instead of signing in immediately', async () => {
+    const mock = mockApi()
+    mock.onPost('/auth/register/').reply(201, {
+      detail: 'Account created. Check your email for a verification link before signing in.',
+    })
+    renderRegister()
+    await userEvent.type(screen.getByLabelText(/first name/i), 'A')
+    await userEvent.type(screen.getByLabelText(/last name/i), 'B')
+    await userEvent.type(screen.getByLabelText(/^username/i), 'ab')
+    await userEvent.type(screen.getByLabelText(/^email/i), 'ab@example.com')
+    await userEvent.type(screen.getByLabelText(/^password/i), 'Sup3r-secret-pw')
+    await userEvent.type(screen.getByLabelText(/confirm password/i), 'Sup3r-secret-pw')
+    await userEvent.click(screen.getByRole('button', { name: /create account/i }))
+
+    expect(await screen.findByText(/check your inbox for a verification link/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /resend verification email/i })).toHaveAttribute(
+      'href',
+      '/resend-verification?email=ab%40example.com',
+    )
+    expect(mock.history.post.map((request) => request.url)).toEqual(['/auth/register/'])
   })
 })

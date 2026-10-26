@@ -56,8 +56,15 @@ export default function Profile() {
     e.preventDefault()
     setProfileMsg(null)
     try {
-      setCurrentUser(await updateMe(form))
-      setProfileMsg({ ok: true, text: 'Profile updated.' })
+      const updatedUser = await updateMe(form)
+      setCurrentUser(updatedUser)
+      const emailChanged = updatedUser.email.toLowerCase() !== (user?.email ?? '').toLowerCase()
+      setProfileMsg({
+        ok: true,
+        text: emailChanged
+          ? 'Profile updated. Verify your new email address before your next sign-in.'
+          : 'Profile updated.',
+      })
     } catch (err) {
       setProfileMsg({ ok: false, text: getErrorMessage(err) })
     }

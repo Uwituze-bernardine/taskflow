@@ -41,6 +41,16 @@ Notes:
 - Any signed-in user can list users (for assignee dropdowns), but non-admins only get
   id / username / name / role for *active* users. Email, phone and status are admin-only.
 - An admin cannot deactivate or demote their own account.
+- Self-registered users must verify their email before signing in. Configure the backend's
+  `FRONTEND_URL` and Gmail SMTP variables (`EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_TLS`,
+  `MAIL_USERNAME`, `MAIL_PASSWORD`, `DEFAULT_FROM_EMAIL`) from a Google App Password; never
+  use a Gmail account password. In production, startup fails if Gmail credentials are absent;
+  local development uses Django's console email backend. Existing accounts remain verified by
+  the migration default.
+- Forgot-password links use the same Gmail SMTP setup. Public endpoints return generic messages
+  whether or not an account exists: `POST /api/auth/password-reset/`,
+  `POST /api/auth/password-reset/confirm/`, `POST /api/auth/verify-email/`, and
+  `POST /api/auth/resend-verification/`. Apply migrations after deploying backend changes.
 - Run the backend tests with `python manage.py test users`.
 
 ## Projects, tasks and assignment (FR-008 – FR-031)

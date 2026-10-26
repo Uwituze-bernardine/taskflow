@@ -21,7 +21,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name',
             'role', 'avatar', 'job_title', 'phone', 'is_active_member',
-            'notification_preferences', 'date_joined',
+            'email_verified', 'notification_preferences', 'date_joined',
         ]
         read_only_fields = fields
 
@@ -65,7 +65,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         password = validated_data.pop('password')
-        user = User(**validated_data, role=Role.TEAM_MEMBER)
+        user = User(**validated_data, role=Role.TEAM_MEMBER, email_verified=False)
         user.set_password(password)
         user.save()
         return user
@@ -121,6 +121,12 @@ class ProfileSerializer(serializers.ModelSerializer):
             return value
         return _unique_email(value, self.instance)
 
+    def update(self, instance, validated_data):
+        email = validated_data.get('email')
+        if email and email.casefold() != instance.email.casefold():
+            validated_data['email_verified'] = False
+        return super().update(instance, validated_data)
+
 
 class ChangePasswordSerializer(serializers.Serializer):
     current_password = serializers.CharField(write_only=True)
@@ -141,6 +147,23 @@ class ResetPasswordSerializer(serializers.Serializer):
     new_password = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
 
+class EmailSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class EmailVerificationSerializer(serializers.Serializer):
+    uid = serializers.CharField()
+    token = serializers.CharField()
+
+
+class PasswordResetConfirmSerializer(EmailVerificationSerializer):
+    new_password = serializers.CharField(write_only=True)
+
+    def validate_new_password(self, value):
+        password_validation.validate_password(value)
+        return value
+
+
 class LoginSerializer(serializers.Serializer):
     """FR-002: login."""
     username = serializers.CharField()
@@ -152,5 +175,9 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError('Invalid username or password.')
         if not user.is_active_member:
             raise serializers.ValidationError('This account has been deactivated.')
+        if not user.email_verified:
+            raise serializers.ValidationError(
+                'Verify your email address before signing in. You can request a new verification email.'
+            )
         attrs['user'] = user
         return attrs

@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import AuthSlideshow from '../components/AuthSlideshow'
 import { useAuth } from '../context/AuthContext'
 import { getErrorMessage } from '../lib/errors'
@@ -8,11 +8,11 @@ import { getErrorMessage } from '../lib/errors'
 // an administrator can grant a higher role afterwards.
 export default function Register() {
   const { register } = useAuth()
-  const navigate = useNavigate()
   const [form, setForm] = useState({
     username: '', email: '', first_name: '', last_name: '', password: '', confirm: '',
   })
   const [error, setError] = useState<string | null>(null)
+  const [registered, setRegistered] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -29,7 +29,7 @@ export default function Register() {
     try {
       const { confirm: _confirm, ...payload } = form
       await register(payload)
-      navigate('/dashboard')
+      setRegistered(true)
     } catch (err) {
       setError(getErrorMessage(err))
     } finally {
@@ -55,6 +55,14 @@ export default function Register() {
           <form className="auth-card wide" onSubmit={handleSubmit}>
             <div className="auth-form-brand"><span className="auth-brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><rect x="2.5" y="2.5" width="27" height="27" rx="6" /><path d="m8 16 5.2 5.2L24 10.5" /></svg></span>TaskFlow</div>
             <h1>Create your account</h1>
+            {registered ? (
+              <>
+                <p className="notice">Account created. Check your inbox for a verification link before signing in.</p>
+                <Link to={`/resend-verification?email=${encodeURIComponent(form.email)}`}>Resend verification email</Link>
+                <Link to="/login">Return to sign in</Link>
+              </>
+            ) : (
+              <>
             <p className="muted">Set up your profile to get started with your workspace.</p>
             <div className="form-grid">
               <label>First name<input value={form.first_name} onChange={set('first_name')} required autoComplete="given-name" /></label>
@@ -73,6 +81,8 @@ export default function Register() {
             <p className="muted">At least 8 characters, not too common, and not entirely numeric.</p>
             {error && <p className="error">{error}</p>}
             <button type="submit" disabled={submitting}>{submitting ? 'Creating account…' : 'Create account'} <span aria-hidden="true">→</span></button>
+              </>
+            )}
           </form>
         </main>
         <footer className="auth-footer"><span>© {new Date().getFullYear()} TaskFlow</span><span>Plan · Assign · Track · Achieve</span></footer>

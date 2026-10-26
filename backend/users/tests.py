@@ -1,3 +1,7 @@
+from urllib.parse import parse_qs, urlsplit
+
+from django.core import mail
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework.test import APITestCase
 
@@ -6,14 +10,26 @@ from .models import Role, User
 PASSWORD = 'Sup3r-secret-pw'
 
 
+
 def make_user(username, role=Role.TEAM_MEMBER, **extra):
     email = extra.pop('email', f'{username}@example.com')
     return User.objects.create_user(
-        username=username, password=PASSWORD, role=role,
-        email=email, first_name=username.title(), last_name='Test', **extra,
+        username=username,
+        password=PASSWORD,
+        role=role,
+        email=email,
+        first_name=username.title(),
+        last_name='Test',
+        email_verified=extra.pop('email_verified', True),
+        **extra,
     )
 
 
+
+@override_settings(
+    EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+    FRONTEND_URL='https://taskflow.example.com',
+)
 class AuthTests(APITestCase):
     def login(self, username, password=PASSWORD):
         return self.client.post(reverse('login'), {'username': username, 'password': password})
@@ -31,7 +47,69 @@ class AuthTests(APITestCase):
             'first_name': 'New', 'last_name': 'Bie', 'password': PASSWORD,
         })
         self.assertEqual(res.status_code, 201, res.data)
-        self.assertEqual(User.objects.get(username='newbie').role, Role.TEAM_MEMBER)
+        user = User.objects.get(username='newbie')
+        self.assertEqual(user.role, Role.TEAM_MEMBER)
+        self.assertFalse(user.email_verified)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('https://taskflow.example.com/verify-email?uid=', mail.outbox[0].body)
+
+    def test_unverified_user_cannot_sign_in_and_verification_enables_login(self):
+        response = self.client.post(reverse('register'), {
+            'username': 'newbie', 'email': 'newbie@example.com',
+            'first_name': 'New', 'last_name': 'Bie', 'password': PASSWORD,
+        })
+        self.assertEqual(response.status_code, 201, response.data)
+        user = User.objects.get(username='newbie')
+
+        denied = self.login(user.username)
+        self.assertEqual(denied.status_code, 400)
+        self.assertIn('Verify your email', str(denied.data))
+
+        link = next(line for line in mail.outbox[0].body.splitlines() if '/verify-email?' in line)
+        params = parse_qs(urlsplit(link).query)
+        verified = self.client.post(reverse('verify_email'), {
+            'uid': params['uid'][0], 'token': params['token'][0],
+        })
+        self.assertEqual(verified.status_code, 200, verified.data)
+        self.assertEqual(self.login(user.username).status_code, 200)
+
+    def test_changing_profile_email_requires_verification(self):
+        user = make_user('emailchange')
+        self.auth_as(user)
+
+        updated = self.client.patch(reverse('user-me'), {'email': 'new-address@example.com'})
+        self.assertEqual(updated.status_code, 200, updated.data)
+        self.assertFalse(updated.data['email_verified'])
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(self.login(user.username).status_code, 400)
+
+        link = next(line for line in mail.outbox[0].body.splitlines() if '/verify-email?' in line)
+        params = parse_qs(urlsplit(link).query)
+        verified = self.client.post(reverse('verify_email'), {
+            'uid': params['uid'][0], 'token': params['token'][0],
+        })
+        self.assertEqual(verified.status_code, 200, verified.data)
+        self.assertEqual(self.login(user.username).status_code, 200)
+
+    def test_password_reset_email_changes_password_and_invalidates_link(self):
+        user = make_user('reset')
+        requested = self.client.post(reverse('password_reset_request'), {'email': user.email})
+        self.assertEqual(requested.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+
+        link = next(line for line in mail.outbox[0].body.splitlines() if '/reset-password?' in line)
+        params = parse_qs(urlsplit(link).query)
+        payload = {
+            'uid': params['uid'][0],
+            'token': params['token'][0],
+            'new_password': 'An0ther-strong-pw',
+        }
+        confirm = self.client.post(reverse('password_reset_confirm'), payload)
+        self.assertEqual(confirm.status_code, 200, confirm.data)
+        self.assertEqual(self.login(user.username, 'An0ther-strong-pw').status_code, 200)
+        self.assertEqual(self.client.post(reverse('password_reset_confirm'), {
+            **payload, 'new_password': 'Athird-strong-pw',
+        }).status_code, 400)
 
     def test_register_cannot_choose_admin_role(self):
         res = self.client.post(reverse('register'), {

@@ -11,11 +11,15 @@ import AdminTags from './pages/AdminTags'
 import AuditLog from './pages/AuditLog'
 import AdminUsers from './pages/AdminUsers'
 import Home from './pages/Home'
+import ForgotPassword from './pages/ForgotPassword'
 import Login from './pages/Login'
 import Notifications from './pages/Notifications'
 import Profile from './pages/Profile'
 import Reports from './pages/Reports'
 import Register from './pages/Register'
+import ResendVerification from './pages/ResendVerification'
+import ResetPassword from './pages/ResetPassword'
+import VerifyEmail from './pages/VerifyEmail'
 import ProjectDetail from './pages/ProjectDetail'
 import Projects from './pages/Projects'
 import TaskDetail from './pages/TaskDetail'
@@ -27,6 +31,10 @@ export default function App() {
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
+      <Route path="/resend-verification" element={<ResendVerification />} />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
