@@ -120,8 +120,52 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = 'static/'
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# --- Supabase S3 Storage for Attachments ---
+
+USE_SUPABASE_STORAGE = (
+    os.environ.get('USE_SUPABASE_STORAGE', 'False').lower() == 'true'
+)
+
+if USE_SUPABASE_STORAGE:
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.s3.S3Storage',
+        },
+        'staticfiles': {
+            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        },
+    }
+
+    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID', '')
+    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', '')
+    AWS_STORAGE_BUCKET_NAME = os.environ.get(
+        'AWS_STORAGE_BUCKET_NAME',
+        'taskflow-attachments',
+    )
+    AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', '')
+    AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'eu-west-1')
+
+    AWS_S3_SIGNATURE_VERSION = 's3v4'
+    AWS_S3_ADDRESSING_STYLE = 'path'
+    AWS_DEFAULT_ACL = None
+    AWS_QUERYSTRING_AUTH = True
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_QUERYSTRING_EXPIRE = 300
+
+    if not all([
+        AWS_ACCESS_KEY_ID,
+        AWS_SECRET_ACCESS_KEY,
+        AWS_S3_ENDPOINT_URL,
+        AWS_STORAGE_BUCKET_NAME,
+    ]):
+        raise ImproperlyConfigured(
+            'Supabase S3 storage is enabled but required environment '
+            'variables are missing.'
+        )
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

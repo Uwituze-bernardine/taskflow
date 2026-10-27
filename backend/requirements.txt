@@ -8,3 +8,4 @@ python-dotenv==1.0.1
 psycopg[binary]==3.2.3
 dj-database-url
 gunicorn
+django-storages[s3]
