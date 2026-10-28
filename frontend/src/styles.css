@@ -157,8 +157,7 @@ textarea {
 .date-filter { position: relative; }
 .date-filter summary { min-height: 38px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); cursor: pointer; white-space: nowrap; }
 .date-filter[open] { flex: 1 1 100%; }
-.date-filter-fields { display: grid; grid-template-columns: repeat(2, minmax(280px, 1fr)); gap: 12px; margin-top: 10px; }
-.date-filter-fields fieldset { display: grid; grid-template-columns: repeat(2, minmax(180px, 1fr)); gap: 8px; border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+.date-filter-fields { display: grid; grid-template-columns: repeat(3, minmax(160px, 1fr)); align-items: end; gap: 10px; margin-top: 10px; }
 .date-filter-fields label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
 .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
 .tab { background: none; color: var(--muted); border-radius: 6px 6px 0 0; border-bottom: 2px solid transparent; }

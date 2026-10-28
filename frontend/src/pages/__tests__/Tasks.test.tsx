@@ -91,16 +91,17 @@ describe('Tasks page', () => {
     renderAsUser(<Tasks />, mePM, mock)
     await screen.findByText('Design database')
 
-    await userEvent.click(screen.getByText('Date ranges'))
-    await userEvent.type(screen.getByLabelText('Created on or after'), '2026-10-01')
-    await userEvent.type(screen.getByLabelText('Due on or before'), '2026-10-31')
+    await userEvent.click(screen.getByText('Date filter'))
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: /filter date field/i }), 'created')
+    await userEvent.type(screen.getByLabelText('Date from'), '2026-10-01')
+    await userEvent.type(screen.getByLabelText('Date to'), '2026-10-31')
     await userEvent.selectOptions(screen.getByRole('combobox', { name: /sort tasks/i }), 'due_date')
 
     await waitFor(() => {
       expect(mock.history.get.some((request) =>
         request.url === '/tasks/'
         && request.params?.created_after === '2026-10-01'
-        && request.params?.due_before === '2026-10-31'
+        && request.params?.created_before === '2026-10-31'
         && request.params?.ordering === 'due_date'
       )).toBe(true)
     })

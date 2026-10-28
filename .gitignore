@@ -18,3 +18,5 @@ frontend/dist/
 htmlcov/
 .pytest_cache/
 *.tsbuildinfo
+.vercel
+.env*

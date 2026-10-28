@@ -15,6 +15,7 @@ import { canCreateTask, isManager } from '../lib/roles'
 import type { Priority, Project, Task, TaskStatus, UserSummary } from '../types'
 
 type Tab = 'all' | 'mine' | 'team' | 'archived'
+type DateField = 'created' | 'due'
 
 const TAB_LABELS: Record<Tab, string> = {
   all: 'All tasks',
@@ -23,9 +24,8 @@ const TAB_LABELS: Record<Tab, string> = {
   archived: 'Archived',
 }
 
-function dateFilterSummary(createdAfter: string, createdBefore: string, dueAfter: string, dueBefore: string) {
-  const active = [createdAfter, createdBefore, dueAfter, dueBefore].filter(Boolean).length
-  return active ? `Date ranges (${active} active)` : 'Date ranges'
+function dateFilterSummary(dateField: DateField, dateFrom: string, dateTo: string) {
+  return dateFrom || dateTo ? `${dateField === 'created' ? 'Created' : 'Due'} date (${dateFrom ? 'from set' : 'until set'})` : 'Date filter'
 }
 
 export default function Tasks() {
@@ -44,10 +44,9 @@ export default function Tasks() {
   const [projectId, setProjectId] = useState('')
   const [assigneeId, setAssigneeId] = useState('')
   const [tag, setTag] = useState('')
-  const [createdAfter, setCreatedAfter] = useState('')
-  const [createdBefore, setCreatedBefore] = useState('')
-  const [dueAfter, setDueAfter] = useState('')
-  const [dueBefore, setDueBefore] = useState('')
+  const [dateField, setDateField] = useState<DateField>('due')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [ordering, setOrdering] = useState('-created_at')
   const [savedFilters, setSavedFilters] = useState<SavedTaskFilter[]>([])
   const [savedFilterId, setSavedFilterId] = useState('')
@@ -78,10 +77,10 @@ export default function Tasks() {
       project: projectId ? Number(projectId) : undefined,
       assigned_to: tab !== 'mine' && assigneeId ? Number(assigneeId) : undefined,
       tag: tag.trim() || undefined,
-      created_after: createdAfter || undefined,
-      created_before: createdBefore || undefined,
-      due_after: dueAfter || undefined,
-      due_before: dueBefore || undefined,
+      created_after: dateField === 'created' ? dateFrom || undefined : undefined,
+      created_before: dateField === 'created' ? dateTo || undefined : undefined,
+      due_after: dateField === 'due' ? dateFrom || undefined : undefined,
+      due_before: dateField === 'due' ? dateTo || undefined : undefined,
       ordering,
       page,
     }
@@ -93,7 +92,7 @@ export default function Tasks() {
       .then((data) => { setTasks(data.results); setCount(data.count); setError(null) })
       .catch((err) => setError(getErrorMessage(err)))
       .finally(() => setLoading(false))
-  }, [tab, debouncedSearch, status, priority, projectId, assigneeId, tag, createdAfter, createdBefore, dueAfter, dueBefore, ordering, page])
+  }, [tab, debouncedSearch, status, priority, projectId, assigneeId, tag, dateField, dateFrom, dateTo, ordering, page])
 
   useEffect(load, [load])
 
@@ -107,10 +106,10 @@ export default function Tasks() {
       ...(projectId ? { project: Number(projectId) } : {}),
       ...(tab !== 'mine' && assigneeId ? { assigned_to: Number(assigneeId) } : {}),
       ...(tag.trim() ? { tag: tag.trim() } : {}),
-      ...(createdAfter ? { created_after: createdAfter } : {}),
-      ...(createdBefore ? { created_before: createdBefore } : {}),
-      ...(dueAfter ? { due_after: dueAfter } : {}),
-      ...(dueBefore ? { due_before: dueBefore } : {}),
+      ...(dateField === 'created' && dateFrom ? { created_after: dateFrom } : {}),
+      ...(dateField === 'created' && dateTo ? { created_before: dateTo } : {}),
+      ...(dateField === 'due' && dateFrom ? { due_after: dateFrom } : {}),
+      ...(dateField === 'due' && dateTo ? { due_before: dateTo } : {}),
     }
   }
 
@@ -122,10 +121,10 @@ export default function Tasks() {
     setProjectId(values.project === undefined ? '' : String(values.project))
     setAssigneeId(values.assigned_to === undefined ? '' : String(values.assigned_to))
     setTag(values.tag ?? '')
-    setCreatedAfter(values.created_after ?? '')
-    setCreatedBefore(values.created_before ?? '')
-    setDueAfter(values.due_after ?? '')
-    setDueBefore(values.due_before ?? '')
+    const hasCreatedDate = values.created_after !== undefined || values.created_before !== undefined
+    setDateField(hasCreatedDate ? 'created' : 'due')
+    setDateFrom(hasCreatedDate ? (values.created_after ?? '') : (values.due_after ?? ''))
+    setDateTo(hasCreatedDate ? (values.created_before ?? '') : (values.due_before ?? ''))
     setPage(1)
   }
 
@@ -200,18 +199,23 @@ export default function Tasks() {
         <input placeholder="Search by title, description or ID…" value={search} onChange={(e) => setSearch(e.target.value)} />
         <input aria-label="Filter by tag" placeholder="Tag" value={tag} onChange={(e) => onFilter(setTag)(e.target.value)} />
         <details className="date-filter">
-          <summary>{dateFilterSummary(createdAfter, createdBefore, dueAfter, dueBefore)}</summary>
+          <summary>{dateFilterSummary(dateField, dateFrom, dateTo)}</summary>
           <div className="date-filter-fields">
-            <fieldset>
-              <legend>Created date</legend>
-              <label>From <input aria-label="Created on or after" type="date" value={createdAfter} onChange={(e) => onFilter(setCreatedAfter)(e.target.value)} /></label>
-              <label>To <input aria-label="Created on or before" type="date" value={createdBefore} onChange={(e) => onFilter(setCreatedBefore)(e.target.value)} /></label>
-            </fieldset>
-            <fieldset>
-              <legend>Due date</legend>
-              <label>From <input aria-label="Due on or after" type="date" value={dueAfter} onChange={(e) => onFilter(setDueAfter)(e.target.value)} /></label>
-              <label>To <input aria-label="Due on or before" type="date" value={dueBefore} onChange={(e) => onFilter(setDueBefore)(e.target.value)} /></label>
-            </fieldset>
+            <select
+              aria-label="Filter date field"
+              value={dateField}
+              onChange={(e) => {
+                setDateField(e.target.value as DateField)
+                setDateFrom('')
+                setDateTo('')
+                setPage(1)
+              }}
+            >
+              <option value="due">Due date</option>
+              <option value="created">Created date</option>
+            </select>
+            <label>From <input aria-label="Date from" type="date" value={dateFrom} onChange={(e) => onFilter(setDateFrom)(e.target.value)} /></label>
+            <label>To <input aria-label="Date to" type="date" value={dateTo} onChange={(e) => onFilter(setDateTo)(e.target.value)} /></label>
           </div>
         </details>
         <select value={status} onChange={(e) => onFilter(setStatus)(e.target.value as TaskStatus | '')}>
