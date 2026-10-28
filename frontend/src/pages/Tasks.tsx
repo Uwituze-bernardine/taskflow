@@ -23,6 +23,11 @@ const TAB_LABELS: Record<Tab, string> = {
   archived: 'Archived',
 }
 
+function dateFilterSummary(createdAfter: string, createdBefore: string, dueAfter: string, dueBefore: string) {
+  const active = [createdAfter, createdBefore, dueAfter, dueBefore].filter(Boolean).length
+  return active ? `Date ranges (${active} active)` : 'Date ranges'
+}
+
 export default function Tasks() {
   const { user } = useAuth()
   const manager = isManager(user?.role)
@@ -194,10 +199,21 @@ export default function Tasks() {
         {savedFilterId && <button type="button" className="btn-secondary" onClick={removeSavedFilter}>Delete saved filter</button>}
         <input placeholder="Search by title, description or ID…" value={search} onChange={(e) => setSearch(e.target.value)} />
         <input aria-label="Filter by tag" placeholder="Tag" value={tag} onChange={(e) => onFilter(setTag)(e.target.value)} />
-        <input aria-label="Created on or after" type="date" value={createdAfter} onChange={(e) => onFilter(setCreatedAfter)(e.target.value)} />
-        <input aria-label="Created on or before" type="date" value={createdBefore} onChange={(e) => onFilter(setCreatedBefore)(e.target.value)} />
-        <input aria-label="Due on or after" type="date" value={dueAfter} onChange={(e) => onFilter(setDueAfter)(e.target.value)} />
-        <input aria-label="Due on or before" type="date" value={dueBefore} onChange={(e) => onFilter(setDueBefore)(e.target.value)} />
+        <details className="date-filter">
+          <summary>{dateFilterSummary(createdAfter, createdBefore, dueAfter, dueBefore)}</summary>
+          <div className="date-filter-fields">
+            <fieldset>
+              <legend>Created date</legend>
+              <label>From <input aria-label="Created on or after" type="date" value={createdAfter} onChange={(e) => onFilter(setCreatedAfter)(e.target.value)} /></label>
+              <label>To <input aria-label="Created on or before" type="date" value={createdBefore} onChange={(e) => onFilter(setCreatedBefore)(e.target.value)} /></label>
+            </fieldset>
+            <fieldset>
+              <legend>Due date</legend>
+              <label>From <input aria-label="Due on or after" type="date" value={dueAfter} onChange={(e) => onFilter(setDueAfter)(e.target.value)} /></label>
+              <label>To <input aria-label="Due on or before" type="date" value={dueBefore} onChange={(e) => onFilter(setDueBefore)(e.target.value)} /></label>
+            </fieldset>
+          </div>
+        </details>
         <select value={status} onChange={(e) => onFilter(setStatus)(e.target.value as TaskStatus | '')}>
           <option value="">All statuses</option>
           {TASK_STATUSES.map((s) => <option key={s} value={s}>{TASK_STATUS_LABELS[s]}</option>)}
@@ -216,7 +232,7 @@ export default function Tasks() {
             {people.map((u) => <option key={u.id} value={u.id}>{fullName(u)}</option>)}
           </select>
         )}
-        <select value={ordering} onChange={(e) => onFilter(setOrdering)(e.target.value)}>
+        <select aria-label="Sort tasks" value={ordering} onChange={(e) => onFilter(setOrdering)(e.target.value)}>
           <option value="-created_at">Newest first</option>
           <option value="due_date">Due soonest</option>
           <option value="-priority">Highest priority</option>
